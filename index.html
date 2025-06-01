@@ -128,11 +128,12 @@
 
                 for (let day = 1; day <= daysInMonth; day++) {
                     const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day);
-                    const gregorianDateString = gregorianDate.toLocaleDateString('bg-BG', {
-                        day: '2-digit',   // Двуцифрен ден (напр. 07)
-                        month: '2-digit', // Двуцифрен месец (напр. 10)
-                        year: '2-digit'   // Двуцифрена година (напр. 25)
-                    });
+                    // Форматиране на григорианската дата като ДД.ММ.ГГ
+                    const dayFormatted = gregorianDate.getDate().toString().padStart(2, '0');
+                    const monthFormatted = (gregorianDate.getMonth() + 1).toString().padStart(2, '0');
+                    const yearFormatted = gregorianDate.getFullYear().toString().slice(-2);
+                    const gregorianDateString = `${dayFormatted}.${monthFormatted}.${yearFormatted}`;
+                    
                     const dateKey = `${hijriYear}-${hijriMonth}-${day}`;
 
                     // Определяне дали денят е петък (ден 5 в JS Date, ако неделя е 0)
