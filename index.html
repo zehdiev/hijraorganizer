@@ -23,7 +23,7 @@
         const { useState, useCallback } = React;
 
         // Помощна функция за преобразуване на хиджри дата в григорианска (опростено приближение)
-        // Това е опропено преобразуване и може да не е напълно точно за всички дати
+        // Това е опростено преобразуване и може да не е напълно точно за всички дати
         // поради сложността на лунния календар и различните методи на изчисление.
         // За приложение от производствен клас би се препоръчала надеждна библиотека за хиджри календар.
         const hijriToGregorian = (hijriYear, hijriMonth, hijriDay) => {
@@ -43,7 +43,7 @@
             daysDiff += (hijriYear - REFERENCE_HIJRI_YEAR) * (12 * AVG_LUNAR_MONTH_DAYS);
 
             // Приблизителни дни за разлика в месеците
-            // Забележка: Това е опропено. Действителните хиджри месеци редуват 29 и 30 дни.
+            // Забележка: Това е опростено. Действителните хиджри месеци редуват 29 и 30 дни.
             // За по-точно изчисление би трябвало да се проследява продължителността на всеки месец.
             for (let m = REFERENCE_HIJRI_MONTH; m < hijriMonth; m++) {
                 daysDiff += AVG_LUNAR_MONTH_DAYS;
@@ -65,11 +65,11 @@
             "Зилкаде", "Зилхидже"
         ];
 
-        // Функция за получаване на броя дни в хиджри месец (опропено приближение)
+        // Функция за получаване на броя дни в хиджри месец (опростено приближение)
         // В действителност, хиджри месеците редуват 29 и 30 дни въз основа на наблюдението на луната.
         // Тази функция използва фиксиран модел за демонстрация.
         const getDaysInHijriMonth = (hijriYear, hijriMonth) => {
-            // Опропен модел: нечетни месеци 30 дни, четни месеци 29 дни, Зул-Хиджа може да е 29 или 30
+            // Опростен модел: нечетни месеци 30 дни, четни месеци 29 дни, Зул-Хиджа може да е 29 или 30
             if (hijriMonth % 2 !== 0) { // Нечетни месеци (Мухаррем, Рабиюлеввел и т.н.)
                 return 30;
             } else if (hijriMonth === 12) { // Зилхидже
@@ -91,7 +91,8 @@
 
             const [selectedHijriYear, setSelectedHijriYear] = useState(initialHijriYear);
             const [selectedHijriMonth, setSelectedHijriMonth] = useState(1); // 1-индекс (Мухаррем)
-            const [notes, setNotes] = useState({}); // Добавен отново state за бележки
+            const [notes, setNotes] = useState({}); // Съхранява бележки: { 'ГГГГ-ММ-ДД_Х': 'текст на бележка' }
+            const [viewMode, setViewMode] = useState('month'); // 'month' или 'year'
 
             // Обработка на промяна в текста на бележката
             const handleNoteChange = useCallback((dateKey, text) => {
@@ -101,49 +102,72 @@
                 }));
             }, []);
 
-            // Генериране на дните в календара
-            const renderCalendarDays = () => {
-                const daysInMonth = getDaysInHijriMonth(selectedHijriYear, selectedHijriMonth);
+            // Компонент за рендиране на един месец (използва се както за месечен, така и за годишен изглед)
+            const renderMonthGrid = (hijriYear, hijriMonth, isYearView = false) => {
+                const daysInMonth = getDaysInHijriMonth(hijriYear, hijriMonth);
                 const calendarDays = [];
 
-                // Определяне на началния ден от седмицата за първия ден на хиджри месеца.
-                // За да започва от понеделник, коригираме getDay(): 0 (Неделя) става 6, 1 (Понеделник) става 0 и т.н.
-                const firstDayGregorian = hijriToGregorian(selectedHijriYear, selectedHijriMonth, 1);
+                const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1);
                 const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 за неделя, 1 за понеделник и т.н.
                 const firstDayOfWeekAdjusted = (gregorianDayOfWeek + 6) % 7; // 0 за понеделник, 6 за неделя
 
                 // Добавяне на празни клетки за дните преди 1-ви число на месеца
                 for (let i = 0; i < firstDayOfWeekAdjusted; i++) {
-                    calendarDays.push(<div key={`empty-${i}`} className="p-4"></div>);
+                    calendarDays.push(<div key={`empty-${hijriMonth}-${i}`} className="p-2"></div>);
                 }
 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    const gregorianDate = hijriToGregorian(selectedHijriYear, selectedHijriMonth, day);
+                    const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day);
                     const gregorianDateString = gregorianDate.toLocaleDateString('bg-BG', {
                         day: 'numeric',
                         month: 'numeric',
                         year: 'numeric'
                     });
-                    const dateKey = `${selectedHijriYear}-${selectedHijriMonth}-${day}`;
+                    const dateKey = `${hijriYear}-${hijriMonth}-${day}`;
 
                     calendarDays.push(
-                        <div key={dateKey} className="p-4 border border-gray-300 rounded-lg shadow-sm flex flex-col bg-white hover:shadow-md transition-shadow duration-200">
-                            <div className="font-semibold text-lg text-indigo-700">
+                        <div key={dateKey} className="p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col bg-white hover:shadow-md transition-shadow duration-200">
+                            <div className="font-semibold text-base text-indigo-700"> {/* Намален размер на шрифта за деня */}
                                 {day}
                             </div>
-                            <div className="text-xs text-gray-600 mb-2">
+                            <div className="text-xs text-gray-600 mb-1"> {/* Намален mb */}
                                 {gregorianDateString}
                             </div>
-                            {/* Добавено обратно текстово поле за бележки, променена височина на h-24 */}
                             <textarea
-                                className="w-full h-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y text-sm"
+                                className="w-full h-16 p-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y text-xs" // Намалена височина и padding, размер на шрифта
                                 value={notes[dateKey] || ''}
                                 onChange={(e) => handleNoteChange(dateKey, e.target.value)}
                             ></textarea>
                         </div>
                     );
                 }
-                return calendarDays;
+
+                return (
+                    <div className="mb-8"> {/* Отстояние между месеците в годишен изглед */}
+                        {!isYearView && ( // Показва името на месеца и годината само в месечен изглед
+                            <div className="text-2xl font-bold text-indigo-800 text-center mb-4">
+                                {hijriMonths[hijriMonth - 1].toUpperCase()} {hijriYear} г.
+                            </div>
+                        )}
+                        {isYearView && ( // Показва името на месеца и годината за всеки месец в годишен изглед
+                            <h3 className="text-xl font-semibold text-indigo-700 text-center mb-2">
+                                {hijriMonths[hijriMonth - 1]} {hijriYear} г.
+                            </h3>
+                        )}
+                        <div className="grid grid-cols-7 gap-2 text-center font-bold text-gray-700 text-sm mb-2"> {/* Намален размер на шрифта за заглавията на дните */}
+                            <div>Пн</div>
+                            <div>Вт</div>
+                            <div>Ср</div>
+                            <div>Чт</div>
+                            <div>Пт</div>
+                            <div>Сб</div>
+                            <div>Нд</div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-2">
+                            {calendarDays}
+                        </div>
+                    </div>
+                );
             };
 
             // Преминаване към предишен месец
@@ -177,7 +201,7 @@
                         scale: 2 // Увеличава резолюцията на скрийншота
                     }).then(canvas => {
                         const link = document.createElement('a');
-                        link.download = 'hijri-calendar-screenshot.png';
+                        link.download = `hijri-calendar-${viewMode}-screenshot.png`;
                         link.href = canvas.toDataURL('image/png');
                         document.body.appendChild(link);
                         link.click();
@@ -191,25 +215,34 @@
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 p-6 font-sans antialiased">
-                    <div id="calendar-container" className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8"> {/* Променена ширина на max-w-7xl */}
+                    <div id="calendar-container" className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8">
                         <h1 className="text-3xl font-extrabold text-center text-indigo-800 mb-6">
                             Хиджра Календар Органайзър
                         </h1>
 
-                        {/* Навигация за месец и година */}
+                        {/* Навигация за месец/година и превключване на изгледа */}
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 p-4 bg-indigo-50 rounded-lg shadow-inner">
-                            <button
-                                onClick={handlePrevMonth}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 mb-4 sm:mb-0"
-                            >
-                                Предишен Месец
-                            </button>
+                            <div className="flex space-x-2 mb-4 sm:mb-0">
+                                <button
+                                    onClick={handlePrevMonth}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                >
+                                    Предишен
+                                </button>
+                                <button
+                                    onClick={handleNextMonth}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                >
+                                    Следващ
+                                </button>
+                            </div>
 
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                                 <select
                                     className="p-3 border border-indigo-300 rounded-lg bg-white text-indigo-800 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                     value={selectedHijriMonth}
                                     onChange={(e) => setSelectedHijriMonth(parseInt(e.target.value))}
+                                    disabled={viewMode === 'year'} // Деактивира се в годишен изглед
                                 >
                                     {hijriMonths.map((month, index) => (
                                         <option key={index} value={index + 1}>
@@ -228,35 +261,25 @@
                             </div>
 
                             <button
-                                onClick={handleNextMonth}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                onClick={() => setViewMode(viewMode === 'month' ? 'year' : 'month')}
+                                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
                             >
-                                Следващ Месец
+                                {viewMode === 'month' ? 'Покажи цялата година' : 'Покажи месец'}
                             </button>
                         </div>
 
-                        {/* Показване на името на месеца и годината над календарната мрежа */}
-                        <div className="text-2xl font-bold text-indigo-800 text-center mb-4">
-                            {hijriMonths[selectedHijriMonth - 1].toUpperCase()} {selectedHijriYear} г.
-                        </div>
-
-                        {/* Заглавия на дните от седмицата */}
-                        <div className="grid grid-cols-7 gap-4 text-center font-bold text-gray-700 text-lg mb-4">
-                            <div>Понеделник</div>
-                            <div>Вторник</div>
-                            <div>Сряда</div>
-                            <div>Четвъртък</div>
-                            <div>Петък</div>
-                            <div>Събота</div>
-                            <div>Неделя</div>
-                        </div>
-
-                        {/* Календарна мрежа */}
-                        <div className="grid grid-cols-7 gap-4">
-                            {renderCalendarDays()}
-                        </div>
-
-                        {/* Премахната е секцията със забележката */}
+                        {/* Календарна мрежа - условно рендиране */}
+                        {viewMode === 'month' ? (
+                            renderMonthGrid(selectedHijriYear, selectedHijriMonth)
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {hijriMonths.map((_, index) => (
+                                    <div key={`year-month-${index + 1}`} className="bg-gray-50 p-4 rounded-lg shadow-md">
+                                        {renderMonthGrid(selectedHijriYear, index + 1, true)}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     {/* Бутон за сваляне на скрийншот */}
                     <div className="flex justify-center mt-6">
