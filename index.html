@@ -118,7 +118,7 @@
                 const calendarDays = [];
 
                 const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1);
-                const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 за неделя, 1 за понеделник и т.н.
+                const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 за неделя, 1 за понеделник и т.n.
                 const firstDayOfWeekAdjusted = (gregorianDayOfWeek + 6) % 7; // 0 за понеделник, 6 за неделя
 
                 // Добавяне на празни клетки за дните преди 1-ви число на месеца
@@ -147,7 +147,7 @@
                                 <span>{day}</span>
                                 {moonPhaseSymbol && <span className="text-xl">{moonPhaseSymbol}</span>} {/* Показва символа само ако не е празен */}
                             </div>
-                            <div className="text-xs text-gray-600 mb-1">
+                            <div className={`text-gray-600 mb-1 ${isYearView ? 'text-[0.6rem]' : 'text-xs'}`}>
                                 {gregorianDateString}
                             </div>
                             {/* Полетата за писане се показват само ако не е годишен изглед */}
