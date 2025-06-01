@@ -83,7 +83,7 @@
 
         // Функция за получаване на символа за фазата на луната само на конкретни дати
         const getMoonPhaseSymbol = (hijriDay) => {
-            if (hijriDay === 1) return '🌑'; // Новолуние (1-ви ден)
+            if (hijriDay === 1) return '�'; // Новолуние (1-ви ден)
             if (hijriDay === 7) return '🌓'; // Първа четвърт (7-ми ден)
             if (hijriDay === 14) return '🌕'; // Пълнолуние (14-ти ден)
             if (hijriDay === 21) return '🌗'; // Последна четвърт (21-ви ден)
@@ -129,9 +129,9 @@
                 for (let day = 1; day <= daysInMonth; day++) {
                     const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day);
                     const gregorianDateString = gregorianDate.toLocaleDateString('bg-BG', {
-                        day: 'numeric',
-                        month: 'numeric',
-                        year: 'numeric'
+                        day: '2-digit',   // Двуцифрен ден (напр. 07)
+                        month: '2-digit', // Двуцифрен месец (напр. 10)
+                        year: '2-digit'   // Двуцифрена година (напр. 25)
                     });
                     const dateKey = `${hijriYear}-${hijriMonth}-${day}`;
 
@@ -235,7 +235,7 @@
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 p-6 font-sans antialiased">
-                    <div id="calendar-container" className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl p-8">
+                    <div id="calendar-container" className="max-w-full mx-auto bg-white rounded-xl shadow-2xl p-8">
                         <h1 className="text-3xl font-extrabold text-center text-indigo-800 mb-6">
                             Хиджра Календар Органайзър
                         </h1>
@@ -292,7 +292,7 @@
                         {viewMode === 'month' ? (
                             renderMonthGrid(selectedHijriYear, selectedHijriMonth)
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
                                 {hijriMonths.map((_, index) => (
                                     <div key={`year-month-${index + 1}`} className="bg-gray-50 p-4 rounded-lg shadow-md">
                                         {renderMonthGrid(selectedHijriYear, index + 1, true)}
@@ -319,3 +319,4 @@
     </script>
 </body>
 </html>
+�
