@@ -23,33 +23,36 @@
         const { useState, useCallback } = React;
 
         // Помощна функция за преобразуване на хиджри дата в григорианска (опростено приближение)
-        // Това е опропено преобразуване и може да не е напълно точно за всички дати
+        // Това е опростено преобразуване и може да не е напълно точно за всички дати
         // поради сложността на лунния календар и различните методи на изчисление.
         // За приложение от производствен клас би се препоръчала надеждна библиотека за хиджри календар.
         const hijriToGregorian = (hijriYear, hijriMonth, hijriDay) => {
-            // Известна референтна точка: 1 Мухаррем 1446 г. по Хиджра е приблизително 7 юли 2024 г. от н.е.
+            // Нова референтна точка: 6 Зилхидже 1446 г. по Хиджра е 2 юни 2025 г. от н.е.
             const REFERENCE_HIJRI_YEAR = 1446;
-            const REFERENCE_HIJRI_MONTH = 1; // Мухаррем
-            const REFERENCE_HIJRI_DAY = 1;
-            const REFERENCE_GREGORIAN_DATE = new Date(2024, 6, 7); // 7 юли 2024 г. (месецът е базиран на 0-индекс)
+            const REFERENCE_HIJRI_MONTH = 12; // Зилхидже
+            const REFERENCE_HIJRI_DAY = 6;
+            const REFERENCE_GREGORIAN_DATE = new Date(2025, 5, 2); // 2 юни 2025 г. (месецът е базиран на 0-индекс)
 
-            // Средна продължителност на лунен месец в дни
-            const AVG_LUNAR_MONTH_DAYS = 29.53;
+            const AVG_LUNAR_MONTH_DAYS = 29.53; // Средна продължителност на лунен месец в дни
 
-            // Изчисляване на дните от референтната хиджри дата
             let daysDiff = 0;
 
-            // Приблизителни дни за разлика в годините
+            // Изчисляване на разликата в дните от новата референтна точка
+            // Първо, коригиране за разлика в годините
             daysDiff += (hijriYear - REFERENCE_HIJRI_YEAR) * (12 * AVG_LUNAR_MONTH_DAYS);
 
-            // Приблизителни дни за разлика в месеците
-            // Забележка: Това е опропено. Действителните хиджри месеци редуват 29 и 30 дни.
-            // За по-точно изчисление би трябвало да се проследява продължителността на всеки месец.
-            for (let m = REFERENCE_HIJRI_MONTH; m < hijriMonth; m++) {
-                daysDiff += AVG_LUNAR_MONTH_DAYS;
+            // След това, коригиране за разлика в месеците
+            if (hijriMonth < REFERENCE_HIJRI_MONTH) {
+                for (let m = REFERENCE_HIJRI_MONTH - 1; m >= hijriMonth; m--) {
+                    daysDiff -= getDaysInHijriMonth(hijriYear, m); // По-точно изчисление на дните в месеца
+                }
+            } else if (hijriMonth > REFERENCE_HIJRI_MONTH) {
+                for (let m = REFERENCE_HIJRI_MONTH; m < hijriMonth; m++) {
+                    daysDiff += getDaysInHijriMonth(hijriYear, m); // По-точно изчисление на дните в месеца
+                }
             }
 
-            // Дни в текущия месец
+            // Накрая, коригиране за разлика в дните в рамките на месеца
             daysDiff += (hijriDay - REFERENCE_HIJRI_DAY);
 
             const gregorianDate = new Date(REFERENCE_GREGORIAN_DATE);
@@ -65,7 +68,7 @@
             "Зилкаде", "Зилхидже"
         ];
 
-        // Функция за получаване на броя дни в хиджри месец (опропено приближение)
+        // Функция за получаване на броя дни в хиджри месец (опростено приближение)
         // В действителност, хиджри месеците редуват 29 и 30 дни въз основа на наблюдението на луната.
         // Тази функция използва фиксиран модел за демонстрация.
         const getDaysInHijriMonth = (hijriYear, hijriMonth) => {
@@ -90,24 +93,18 @@
             return ''; // Връща празен низ за другите дни
         };
 
-        // Дефиниция на основните ислямски празници по хиджри месец и ден
-        // Тази константа е премахната, тъй като празниците вече няма да се показват.
-        // const islamicHolidays = [
-        //     { month: 10, day: 1, name: "Рамазан Байрам" }, // Шаввал 1
-        //     { month: 12, day: 10, name: "Курбан Байрам" }  // Зилхидже 10
-        // ];
-
 
         const App = () => {
             const { useState } = React;
             const today = new Date();
             const currentGregorianYear = today.getFullYear();
 
-            // Приблизителна текуща хиджри година за първоначален дисплей
-            const initialHijriYear = currentGregorianYear - 622; // Много грубо приближение
+            // Задаваме начална хиджри година и месец въз основа на потребителската корекция
+            const initialHijriYear = 1446;
+            const initialHijriMonth = 12; // Зилхидже
 
             const [selectedHijriYear, setSelectedHijriYear] = useState(initialHijriYear);
-            const [selectedHijriMonth, setSelectedHijriMonth] = useState(1); // 1-индекс (Мухаррем)
+            const [selectedHijriMonth, setSelectedHijriMonth] = useState(initialHijriMonth);
             const [notes, setNotes] = useState({}); // Съхранява бележки: { 'ГГГГ-ММ-ДД_Х': 'текст на бележка' }
             const [viewMode, setViewMode] = useState('month'); // 'month' или 'year'
 
@@ -170,11 +167,6 @@
                     );
                 }
 
-                // Филтриране на празниците за текущия месец - този блок е премахнат
-                // const holidaysInMonth = islamicHolidays.filter(
-                //     holiday => holiday.month === hijriMonth
-                // );
-
                 return (
                     <div className="mb-8"> {/* Отстояние между месеците в годишен изглед */}
                         {!isYearView && ( // Показва името на месеца и годината само в месечен изглед
@@ -187,16 +179,6 @@
                                 {hijriMonths[hijriMonth - 1]} {hijriYear} г.
                             </h3>
                         )}
-                        {/* Блокът за показване на празници е премахнат */}
-                        {/* {isYearView && holidaysInMonth.length > 0 && (
-                            <div className="text-center text-sm text-gray-700 mb-2">
-                                {holidaysInMonth.map((holiday, idx) => (
-                                    <p key={idx} className="text-indigo-600 font-medium">
-                                        {holiday.name} ({holiday.day} {hijriMonths[holiday.month - 1]})
-                                    </p>
-                                ))}
-                            </div>
-                        )} */}
                         <div className="grid grid-cols-7 gap-2 text-center font-bold text-gray-700 text-sm mb-2"> {/* Намален размер на шрифта за заглавията на дните */}
                             <div>Нд</div>
                             <div>Пн</div>
