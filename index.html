@@ -217,6 +217,16 @@
                 });
             };
 
+            // Нова функция за преминаване към предишна година
+            const handlePrevYear = () => {
+                setSelectedHijriYear(prevYear => prevYear - 1);
+            };
+
+            // Нова функция за преминаване към следваща година
+            const handleNextYear = () => {
+                setSelectedHijriYear(prevYear => prevYear + 1);
+            };
+
             // Функция за сваляне на скрийншот
             const handleDownloadScreenshot = () => {
                 const calendarElement = document.getElementById('calendar-container'); // ID на елемента, който ще се снима
@@ -247,20 +257,37 @@
 
                         {/* Навигация за месец/година и превключване на изгледа */}
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 p-4 bg-indigo-50 rounded-lg shadow-inner">
-                            <div className="flex space-x-2 mb-4 sm:mb-0">
-                                <button
-                                    onClick={handlePrevMonth}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
-                                >
-                                    Предишен
-                                </button>
-                                <button
-                                    onClick={handleNextMonth}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
-                                >
-                                    Следващ
-                                </button>
-                            </div>
+                            {viewMode === 'month' ? (
+                                <div className="flex space-x-2 mb-4 sm:mb-0">
+                                    <button
+                                        onClick={handlePrevMonth}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    >
+                                        Предишен Месец
+                                    </button>
+                                    <button
+                                        onClick={handleNextMonth}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    >
+                                        Следващ Месец
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex space-x-2 mb-4 sm:mb-0">
+                                    <button
+                                        onClick={handlePrevYear}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    >
+                                        Предишна Година
+                                    </button>
+                                    <button
+                                        onClick={handleNextYear}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105"
+                                    >
+                                        Следваща Година
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="flex items-center space-x-4 mb-4 sm:mb-0">
                                 <select
