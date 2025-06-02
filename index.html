@@ -84,18 +84,59 @@
             }
         };
 
-        // Функция за получаване на символа за фазата на луната само на конкретни дати
-        const getMoonPhaseSymbol = (hijriDay) => {
-            if (hijriDay === 1) return '🌑︎'; // Новолуние (1-ви ден)
-            if (hijriDay === 7) return '🌓︎'; // Първа четвърт (7-ми ден)
-            if (hijriDay === 14) return '🌕︎'; // Пълнолуние (14-ти ден)
-            if (hijriDay === 21) return '🌗︎'; // Последна четвърт (21-ви ден)
-            return ''; // Връща празен низ за другите дни
+        // Функция за получаване на символа за фазата на луната въз основа на григорианска дата (астрономически метод с 8 фази)
+        const getMoonPhaseSymbol = (gregorianDate) => {
+            // Референтна дата на новолуние: 6 януари 2000 г., 12:00 UTC
+            const referenceNewMoon = new Date(Date.UTC(2000, 0, 6, 12, 0, 0));
+            const millisecondsPerDay = 1000 * 60 * 60 * 24;
+            const lunarCycle = 29.530588; // Синодичен период на Луната
+
+            const daysSinceReference = (gregorianDate.getTime() - referenceNewMoon.getTime()) / millisecondsPerDay;
+            let phaseIndex = daysSinceReference % lunarCycle;
+
+            if (phaseIndex < 0) {
+                phaseIndex += lunarCycle;
+            }
+
+            // Определяне на 8-те основни фази
+            // Източници: Различни астрономически източници за приблизителни дни в цикъла
+            if (phaseIndex >= 0 && phaseIndex < 1.84566) return '🌑︎'; // Новолуние (New Moon)
+            if (phaseIndex >= 1.84566 && phaseIndex < 5.53699) return '🌒︎'; // Нарастващ полумесец (Waxing Crescent)
+            if (phaseIndex >= 5.53699 && phaseIndex < 9.22831) return '🌓︎'; // Първа четвърт (First Quarter)
+            if (phaseIndex >= 9.22831 && phaseIndex < 12.91963) return '🌔︎'; // Нарастваща луна (Waxing Gibbous)
+            if (phaseIndex >= 12.91963 && phaseIndex < 16.61096) return '🌕︎'; // Пълнолуние (Full Moon)
+            if (phaseIndex >= 16.61096 && phaseIndex < 20.30228) return '🌖︎'; // Намаляваща луна (Waning Gibbous)
+            if (phaseIndex >= 20.30228 && phaseIndex < 23.99361) return '🌗︎'; // Последна четвърт (Last Quarter)
+            if (phaseIndex >= 23.99361 && phaseIndex < 27.68493) return '🌘︎'; // Намаляващ полумесец (Waning Crescent)
+            return '🌑︎'; // Връща новолуние за последния сегмент, преди да се върне към 0
         };
+
+        // Дефиниция на основните ислямски свещени дни и нощи за 1446 г. по Хиджра
+        // Информацията е базирана на общоприети дати и може да варира леко
+        // в зависимост от конкретното наблюдение на луната и региона.
+        const sacredDaysAndNights = [
+            // Реджеб (7-ми месец)
+            { month: 7, day: 1, name: "Регаиб Кандиль" }, // Първият четвъртък вечер на Реджеб
+            { month: 7, day: 27, name: "Мирадж Кандиль" }, // 27-ми Реджеб
+            // Шабан (8-ми месец)
+            { month: 8, day: 15, name: "Берат Кандиль" }, // 15-ти Шабан
+            // Рамазан (9-ти месец)
+            { month: 9, day: 27, name: "Кадир Геджеси" }, // 27-ми Рамазан (нощта на Кадир)
+            // Шеввал (10-ти месец)
+            { month: 10, day: 1, name: "Рамазан Байрам (1-ви ден)" }, // 1-ви Шеввал
+            { month: 10, day: 2, name: "Рамазан Байрам (2-ри ден)" }, // 2-ри Шеввал
+            { month: 10, day: 3, name: "Рамазан Байрам (3-ти ден)" }, // 3-ти Шеввал
+            // Зилхидже (12-ти месец)
+            { month: 12, day: 9, name: "Денят Арафа" }, // 9-ти Зилхидже
+            { month: 12, day: 10, name: "Курбан Байрам (1-ви ден)" }, // 10-ти Зилхидже
+            { month: 12, day: 11, name: "Курбан Байрам (2-ри ден)" }, // 11-ти Зилхидже
+            { month: 12, day: 12, name: "Курбан Байрам (3-ти ден)" }, // 12-ти Зилхидже
+            { month: 12, day: 13, name: "Курбан Байрам (4-ти ден)" }  // 13-ти Зилхидже
+        ];
 
 
         const App = () => {
-            const { useState } = React;
+            const { useState, useCallback } = React;
             const today = new Date();
             const currentGregorianYear = today.getFullYear();
 
@@ -144,15 +185,15 @@
                     const isFriday = gregorianDate.getDay() === 5;
                     const cellBgClass = isFriday ? 'bg-green-100' : 'bg-white'; // Зелен фон за петък
 
-                    const moonPhaseSymbol = getMoonPhaseSymbol(day); // Вземане на символа за фазата на луната
+                    const moonPhaseSymbol = getMoonPhaseSymbol(gregorianDate); // Вземане на символа за фазата на луната
 
                     calendarDays.push(
                         <div key={dateKey} className={`p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col ${cellBgClass} hover:shadow-md transition-shadow duration-200`}>
-                            <div className="flex justify-between items-center font-semibold text-base text-indigo-700">
+                            <div className="flex justify-between items-center font-semibold text-xl text-indigo-700"> {/* Увеличен размер на хиджри деня */}
                                 <span>{day}</span>
-                                {moonPhaseSymbol && <span className="text-xl">{moonPhaseSymbol}</span>} {/* Показва символа само ако не е празен */}
+                                {moonPhaseSymbol && <span className="text-base">{moonPhaseSymbol}</span>} {/* Намален размер на символа на луната */}
                             </div>
-                            <div className={`text-gray-600 mb-1 ${isYearView ? 'text-[0.6rem]' : 'text-xs'}`}>
+                            <div className={`text-gray-600 mb-1 ${isYearView ? 'text-[0.6rem]' : 'text-sm'}`}> {/* Увеличен размер на григорианската дата */}
                                 {gregorianDateString}
                             </div>
                             {/* Полетата за писане се показват само ако не е годишен изглед */}
@@ -166,6 +207,11 @@
                         </div>
                     );
                 }
+
+                // Филтриране на празниците за текущия месец
+                const holidaysInMonth = sacredDaysAndNights.filter(
+                    holiday => holiday.month === hijriMonth
+                );
 
                 return (
                     <div className="mb-8"> {/* Отстояние между месеците в годишен изглед */}
@@ -191,6 +237,16 @@
                         <div className="grid grid-cols-7 gap-2">
                             {calendarDays}
                         </div>
+                        {/* Показване на празниците под цялата мрежа на месеца (и в месечен, и в годишен изглед) */}
+                        {holidaysInMonth.length > 0 && (
+                            <div className="text-center text-sm text-gray-700 mt-4"> {/* Добавено mt-4 за отстояние */}
+                                {holidaysInMonth.map((holiday, idx) => (
+                                    <p key={idx} className="text-indigo-600 font-medium">
+                                        {holiday.name} ({holiday.day} {hijriMonths[holiday.month - 1]})
+                                    </p>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 );
             };
