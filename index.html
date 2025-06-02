@@ -189,13 +189,29 @@
 
                     calendarDays.push(
                         <div key={dateKey} className={`p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col ${cellBgClass} hover:shadow-md transition-shadow duration-200`}>
-                            <div className="flex justify-between items-center font-semibold text-xl text-indigo-700"> {/* Увеличен размер на хиджри деня */}
-                                <span>{day}</span>
-                                {moonPhaseSymbol && <span className="text-base">{moonPhaseSymbol}</span>} {/* Намален размер на символа на луната */}
-                            </div>
-                            <div className={`text-gray-600 mb-1 ${isYearView ? 'text-[0.6rem]' : 'text-sm'}`}> {/* Увеличен размер на григорианската дата */}
-                                {gregorianDateString}
-                            </div>
+                            {/* Хиджри ден и лунен символ (условно рендиране) */}
+                            {isYearView ? (
+                                <>
+                                    <div className="font-semibold text-2xl text-indigo-700 text-center"> {/* Увеличен размер на хиджри деня */}
+                                        <span>{day}</span>
+                                    </div>
+                                    <div className={`text-gray-600 mb-1 text-base text-center`}> {/* Увеличен размер на григорианската дата */}
+                                        {gregorianDateString}
+                                    </div>
+                                    {moonPhaseSymbol && <div className="text-xs text-center mt-1">{moonPhaseSymbol}</div>} {/* Намален размер на символа на луната, под датите */}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between items-center font-semibold text-2xl text-indigo-700"> {/* Увеличен размер на хиджри деня */}
+                                        <span>{day}</span>
+                                        {moonPhaseSymbol && <span className="text-xs">{moonPhaseSymbol}</span>} {/* Намален размер на символа на луната */}
+                                    </div>
+                                    <div className={`text-gray-600 mb-1 text-base`}> {/* Увеличен размер на григорианската дата */}
+                                        {gregorianDateString}
+                                    </div>
+                                </>
+                            )}
+                            
                             {/* Полетата за писане се показват само ако не е годишен изглед */}
                             {!isYearView && (
                                 <textarea
