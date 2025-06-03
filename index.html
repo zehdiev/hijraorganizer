@@ -62,43 +62,6 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect } = React;
 
-        // Помощна функция за преобразуване на хиджри дата в григорианска (опростено приближение)
-        // Тази функция вече приема getDaysInHijriMonth като аргумент
-        const hijriToGregorian = (hijriYear, hijriMonth, hijriDay, getDaysInHijriMonthFunc) => {
-            // Нова референтна точка: 6 Зилхидже 1446 г. по Хиджра е 2 юни 2025 г. от н.е.
-            const REFERENCE_HIJRI_YEAR = 1446;
-            const REFERENCE_HIJRI_MONTH = 12; // Зилхидже
-            const REFERENCE_HIJRI_DAY = 6;
-            const REFERENCE_GREGORIAN_DATE = new Date(2025, 5, 2); // 2 юни 2025 г. (месецът е базиран на 0-индекс)
-
-            const AVG_LUNAR_MONTH_DAYS = 29.53; // Средна продължителност на лунен месец в дни
-
-            let daysDiff = 0;
-
-            // Изчисляване на разликата в дните от новата референтна точка
-            // Първо, коригиране за разлика в годините
-            daysDiff += (hijriYear - REFERENCE_HIJRI_YEAR) * (12 * AVG_LUNAR_MONTH_DAYS);
-
-            // След това, коригиране за разлика в месеците
-            if (hijriMonth < REFERENCE_HIJRI_MONTH) {
-                for (let m = REFERENCE_HIJRI_MONTH - 1; m >= hijriMonth; m--) {
-                    daysDiff -= getDaysInHijriMonthFunc(hijriYear, m); // Използваме предадената функция
-                }
-            } else if (hijriMonth > REFERENCE_HIJRI_MONTH) {
-                for (let m = REFERENCE_HIJRI_MONTH; m < hijriMonth; m++) {
-                    daysDiff += getDaysInHijriMonthFunc(hijriYear, m); // Използваме предадената функция
-                }
-            }
-
-            // Накрая, коригиране за разлика в дните в рамките на месеца
-            daysDiff += (hijriDay - REFERENCE_HIJRI_DAY);
-
-            const gregorianDate = new Date(REFERENCE_GREGORIAN_DATE);
-            gregorianDate.setDate(REFERENCE_GREGORIAN_DATE.getDate() + daysDiff);
-
-            return gregorianDate;
-        };
-
         // Имена на хиджри месеците на български
         const hijriMonths = [
             "Мухаррем", "Сафер", "Рабиюлеввел", "Рабиюлахир", "Джемазиюлеввел",
@@ -107,7 +70,7 @@
         ];
 
         // Функция за получаване на броя дни в хиджри месец (опростено приближение)
-        // Тази функция ще бъде модифицирана, за да използва ръчни настройки
+        // Тази функция дава ДЕФОЛТНИЯ брой дни, без ръчни корекции.
         const getDaysInHijriMonthDefault = (hijriMonth) => {
             if (hijriMonth % 2 !== 0) {
                 return 30;
@@ -116,6 +79,94 @@
             } else {
                 return 29;
             }
+        };
+
+        // Нова помощна функция за изчисляване на Григорианската начална дата за даден Хиджри месец
+        // Използва САМО дефолтните дължини на месеците, за да гарантира, че началните дати на месеците не се изместват.
+        // Тази функция вече не се използва директно за изчисляване на GRIgorian start date,
+        // а по-скоро за изчисляване на кумулативния offset, когато няма ръчно зададена дата.
+        const getGregorianStartDateForHijriMonth = (targetHijriYear, targetHijriMonth, manualMonthDays, manualGregorianStartDates) => {
+            const REFERENCE_HIJRI_YEAR = 1446;
+            const REFERENCE_HIJRI_MONTH = 12; // Зилхидже
+            const REFERENCE_HIJRI_DAY = 6;
+            const REFERENCE_GREGORIAN_DATE = new Date(2025, 5, 2); // 2 юни 2025 г. (месецът е базиран на 0-индекс)
+
+            const monthKey = `${targetHijriYear}-${targetHijriMonth}`;
+            if (manualGregorianStartDates[monthKey]) {
+                // Ако има ръчно зададена григорианска начална дата, използваме нея.
+                // Важно: Съхраняваме датата като ISO string, затова я парсваме обратно
+                return new Date(manualGregorianStartDates[monthKey]);
+            }
+
+            let daysOffset = 0;
+            let currentHijriYear = REFERENCE_HIJRI_YEAR;
+            let currentHijriMonth = REFERENCE_HIJRI_MONTH;
+
+            // Helper to get actual days in a month, considering manual overrides
+            // This is crucial for cumulative calculation
+            const getActualDaysInMonth = (year, month) => {
+                const key = `${year}-${month}`;
+                return manualMonthDays[key] !== undefined ? manualMonthDays[key] : getDaysInHijriMonthDefault(month);
+            };
+
+            // Calculate days from REFERENCE_HIJRI_YEAR-REFERENCE_HIJRI_MONTH to targetHijriYear-targetHijriMonth
+            // Adjust for years
+            while (currentHijriYear < targetHijriYear) {
+                for (let m = currentHijriMonth; m <= 12; m++) {
+                    daysOffset += getActualDaysInMonth(currentHijriYear, m);
+                }
+                currentHijriYear++;
+                currentHijriMonth = 1; // Reset to Muharram for the new year
+            }
+            while (currentHijriYear > targetHijriYear) {
+                currentHijriYear--;
+                for (let m = 12; m >= currentHijriMonth; m--) {
+                    daysOffset -= getActualDaysInMonth(currentHijriYear, m);
+                }
+                currentHijriMonth = 12;
+            }
+
+            // Adjust for months within the same year
+            if (currentHijriMonth < targetHijriMonth) {
+                for (let m = currentHijriMonth; m < targetHijriMonth; m++) {
+                    daysOffset += getActualDaysInMonth(currentHijriYear, m);
+                }
+            } else if (currentHijriMonth > targetHijriMonth) {
+                for (let m = currentHijriMonth - 1; m >= targetHijriMonth; m--) {
+                    daysOffset -= getActualDaysInMonth(currentHijriYear, m);
+                }
+            }
+
+            // Adjust for the reference day itself (we want the start of the target month)
+            daysOffset -= (REFERENCE_HIJRI_DAY - 1);
+
+            const gregorianStartDate = new Date(REFERENCE_GREGORIAN_DATE);
+            gregorianStartDate.setDate(REFERENCE_GREGORIAN_DATE.getDate() + daysOffset);
+
+            return gregorianStartDate;
+        };
+
+
+        // Функция за преобразуване на хиджри дата в григорианска (с корекция "в края")
+        const hijriToGregorian = (hijriYear, hijriMonth, hijriDay, manualMonthDays, manualGregorianStartDates) => {
+            // Вземаме дефолтната григорианска начална дата за този хиджри месец
+            // Тази функция вече включва логиката за ръчно зададени начални дати и кумулативни корекции
+            const gregorianStartDateOfThisHijriMonth = getGregorianStartDateForHijriMonth(hijriYear, hijriMonth, manualMonthDays, manualGregorianStartDates);
+
+            // Вземаме действителния (ръчно зададен или дефолтен) брой дни за *текущия* месец
+            const monthKey = `${hijriYear}-${hijriMonth}`;
+            const actualDaysInCurrentHijriMonth = manualMonthDays[monthKey] !== undefined
+                ? manualMonthDays[monthKey]
+                : getDaysInHijriMonthDefault(hijriMonth);
+
+            // Уверяваме се, че hijriDay не надвишава действителния брой дни в месеца
+            const adjustedHijriDay = Math.min(hijriDay, actualDaysInCurrentHijriMonth);
+
+            // Изчисляваме григорианската дата, като добавяме дните към дефолтната начална дата на месеца
+            const finalGregorianDate = new Date(gregorianStartDateOfThisHijriMonth);
+            finalGregorianDate.setDate(gregorianStartDateOfThisHijriMonth.getDate() + (adjustedHijriDay - 1));
+
+            return finalGregorianDate;
         };
 
         // Функция за получаване на символа за фазата на луната въз основа на григорианска дата (астрономически метод с 4 основни фази)
@@ -181,8 +232,19 @@
 
             const [selectedHijriYear, setSelectedHijriYear] = useState(initialHijriYear);
             const [selectedHijriMonth, setSelectedHijriMonth] = useState(initialHijriMonth);
+            
+            // Зареждане на viewMode от localStorage при инициализация
+            const [viewMode, setViewMode] = useState(() => {
+                try {
+                    const savedViewMode = localStorage.getItem('viewMode');
+                    return savedViewMode || 'year'; // Default to 'year' if not found, now explicitly 'year'
+                } catch (error) {
+                    console.error("Failed to load viewMode from localStorage:", error);
+                    return 'year';
+                }
+            });
+
             const [notes, setNotes] = useState({}); // Съхранява бележки: { 'ГГГГ-ММ-ДД_Х': 'текст на бележка' }
-            const [viewMode, setViewMode] = useState('month'); // 'month' или 'year'
 
             // Състояние за управление на модала за лунни фази
             const [showPhaseModal, setShowPhaseModal] = useState(false);
@@ -198,6 +260,11 @@
             const [showMonthDaysModal, setShowMonthDaysModal] = useState(false);
             const [modalMonthKey, setModalMonthKey] = useState(''); // Ключ на месеца (пр. '1446-12')
             const [currentManualDays, setCurrentManualDays] = useState(0); // Брой дни в модала
+
+            // Състояние за ръчно зададени григориански начални дати за Хиджри месеци
+            const [manualGregorianStartDates, setManualGregorianStartDates] = useState({}); // {'HIJRI_YEAR-HIJRI_MONTH': 'YYYY-MM-DD'}
+            const [isManualStartDateActive, setIsManualStartDateActive] = useState(false);
+            const [currentManualStartDate, setCurrentManualStartDate] = useState(''); // За input type="date"
 
             // Функция за получаване на броя дни в хиджри месец, с приоритет за ръчните настройки
             const getDaysInHijriMonth = (hijriYear, hijriMonth) => {
@@ -238,7 +305,7 @@
             const handleClearManualPhase = () => {
                 setManualMoonPhases(prevPhases => {
                     const newPhases = { ...prevPhases };
-                    delete newPhases[modalDateKey]; // Премахва записа, за да се върне към автоматичната фаза или празно
+                    newPhases[modalDateKey] = ''; // Задава празен низ, за да скрие както ръчни, така и автоматични фази
                     return newPhases;
                 });
                 closePhaseModal();
@@ -248,6 +315,20 @@
             const openMonthDaysModal = (monthKey, currentDays) => {
                 setModalMonthKey(monthKey);
                 setCurrentManualDays(currentDays);
+                
+                // Set initial state for manual Gregorian start date in modal
+                const storedStartDate = manualGregorianStartDates[monthKey];
+                if (storedStartDate) {
+                    setIsManualStartDateActive(true);
+                    setCurrentManualStartDate(storedStartDate);
+                } else {
+                    setIsManualStartDateActive(false);
+                    // Calculate and set the default Gregorian start date for display purposes
+                    const [hijriYear, hijriMonth] = monthKey.split('-').map(Number);
+                    const defaultGregorianStart = getGregorianStartDateForHijriMonth(hijriYear, hijriMonth, manualMonthDays, manualGregorianStartDates);
+                    setCurrentManualStartDate(defaultGregorianStart.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+                }
+
                 setShowMonthDaysModal(true);
             };
 
@@ -255,6 +336,8 @@
                 setShowMonthDaysModal(false);
                 setModalMonthKey('');
                 setCurrentManualDays(0);
+                setCurrentManualStartDate('');
+                setIsManualStartDateActive(false);
             };
 
             const handleSaveManualMonthDays = () => {
@@ -262,6 +345,19 @@
                     ...prevDays,
                     [modalMonthKey]: currentManualDays
                 }));
+
+                if (isManualStartDateActive && currentManualStartDate) {
+                    setManualGregorianStartDates(prevDates => ({
+                        ...prevDates,
+                        [modalMonthKey]: currentManualStartDate
+                    }));
+                } else {
+                    setManualGregorianStartDates(prevDates => {
+                        const newDates = { ...prevDates };
+                        delete newDates[modalMonthKey];
+                        return newDates;
+                    });
+                }
                 closeMonthDaysModal();
             };
 
@@ -270,6 +366,11 @@
                     const newDays = { ...prevDays };
                     delete newDays[modalMonthKey];
                     return newDays;
+                });
+                setManualGregorianStartDates(prevDates => {
+                    const newDates = { ...prevDates };
+                    delete newDates[modalMonthKey];
+                    return newDates;
                 });
                 closeMonthDaysModal();
             };
@@ -288,6 +389,10 @@
                     const savedManualMonthDays = localStorage.getItem('manualMonthDays');
                     if (savedManualMonthDays) {
                         setManualMonthDays(JSON.parse(savedManualMonthDays));
+                    }
+                    const savedManualGregorianStartDates = localStorage.getItem('manualGregorianStartDates');
+                    if (savedManualGregorianStartDates) {
+                        setManualGregorianStartDates(JSON.parse(savedManualGregorianStartDates));
                     }
                 } catch (error) {
                     console.error("Failed to load state from localStorage:", error);
@@ -319,12 +424,31 @@
                 }
             }, [manualMonthDays]);
 
+            useEffect(() => {
+                try {
+                    localStorage.setItem('manualGregorianStartDates', JSON.stringify(manualGregorianStartDates));
+                } catch (error) {
+                    console.error("Failed to save manualGregorianStartDates to localStorage:", error);
+                }
+            }, [manualGregorianStartDates]);
+
+            // Запазване на viewMode в localStorage при промяна
+            useEffect(() => {
+                try {
+                    localStorage.setItem('viewMode', viewMode);
+                } catch (error) {
+                    console.error("Failed to save viewMode to localStorage:", error);
+                }
+            }, [viewMode]);
+
             // === Функция за глобално запазване на всички настройки ===
             const handleSaveAllSettings = () => {
                 try {
                     localStorage.setItem('calendarNotes', JSON.stringify(notes));
                     localStorage.setItem('manualMoonPhases', JSON.stringify(manualMoonPhases));
                     localStorage.setItem('manualMonthDays', JSON.stringify(manualMonthDays));
+                    localStorage.setItem('manualGregorianStartDates', JSON.stringify(manualGregorianStartDates));
+                    localStorage.setItem('viewMode', viewMode); // Запазване на viewMode
                     console.log("Всички настройки са запазени!");
                     // Можете да добавите визуална обратна връзка тук, например кратко съобщение "Запазено!"
                 } catch (error) {
@@ -338,44 +462,43 @@
                 const daysInMonth = getDaysInHijriMonth(hijriYear, hijriMonth);
                 const calendarDays = [];
 
-                // Pass the current getDaysInHijriMonth function to hijriToGregorian
-                const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1, getDaysInHijriMonth);
-                const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 за неделя, 1 за понеделник и т.н.
-                // За да започва от неделя, не е нужна корекция: 0 за неделя, 1 за понеделник и т.н.
-                const firstDayOfWeekAdjusted = gregorianDayOfWeek; 
+                // Get the Gregorian start date for this Hijri month using the updated hijriToGregorian
+                const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1, getDaysInHijriMonth, manualGregorianStartDates);
+                const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 for Sunday, 1 for Monday, etc.
+                // No adjustment needed if Sunday is 0.
 
-                // Добавяне на празни клетки за дните преди 1-ви число на месеца
-                for (let i = 0; i < firstDayOfWeekAdjusted; i++) {
+                // Add empty cells for days before the 1st of the month
+                for (let i = 0; i < gregorianDayOfWeek; i++) {
                     calendarDays.push(<div key={`empty-${hijriMonth}-${i}`} className="p-2"></div>);
                 }
 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    // Pass the current getDaysInHijriMonth function to hijriToGregorian
-                    const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day, getDaysInHijriMonth);
-                    // Форматиране на григорианската дата като ДД.ММ
+                    // Pass all necessary states to hijriToGregorian
+                    const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day, getDaysInHijriMonth, manualGregorianStartDates);
+                    // Format Gregorian date as DD.MM
                     const dayFormatted = gregorianDate.getDate().toString().padStart(2, '0');
                     const monthFormatted = (gregorianDate.getMonth() + 1).toString().padStart(2, '0');
                     const gregorianDateString = `${dayFormatted}.${monthFormatted}`;
                     
-                    const dateKey = `${gregorianDate.getFullYear()}-${monthFormatted}-${dayFormatted}`; // Използваме григорианска дата за ключ
+                    const dateKey = `${gregorianDate.getFullYear()}-${monthFormatted}-${dayFormatted}`; // Use Gregorian date for key
 
-                    // Определяне дали денят е петък (ден 5 в JS Date, ако неделя е 0)
+                    // Determine if the day is Friday (day 5 in JS Date, if Sunday is 0)
                     const isFriday = gregorianDate.getDay() === 5;
-                    const cellBgClass = isFriday ? 'bg-green-100' : 'bg-white'; // Зелен фон за петък
+                    const cellBgClass = isFriday ? 'bg-green-100' : 'bg-white'; // Green background for Friday
 
-                    // Вземане на символа за фазата на луната
-                    // Ако има ръчно зададена фаза (дори и празен низ за изчистване), тя има приоритет.
-                    // В противен случай, използва автоматично изчислената фаза.
+                    // Get moon phase symbol
+                    // If there's a manually set phase (even an empty string to clear), it takes precedence.
+                    // Otherwise, use the automatically calculated phase.
                     const autoMoonPhaseSymbol = getMoonPhaseSymbol(gregorianDate);
                     const moonPhaseSymbolToDisplay = (manualMoonPhases[dateKey] !== undefined) ? manualMoonPhases[dateKey] : autoMoonPhaseSymbol;
                     
-                    // Бутонът за ръчна фаза се показва на ВСЯКА дата
-                    const showManualOptionButton = true; // Винаги показвай бутона
+                    // The manual phase option button is always shown
+                    const showManualOptionButton = true; 
 
 
                     calendarDays.push(
                         <div key={dateKey} className={`relative p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col ${cellBgClass} hover:shadow-md transition-shadow duration-200`}>
-                            {/* Бутон за ръчно задаване на фаза */}
+                            {/* Button for manual phase setting */}
                             {showManualOptionButton && (
                                 <button
                                     onClick={() => openPhaseModal(dateKey)}
@@ -704,6 +827,28 @@
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Хиджри месеците обикновено са 29 или 30 дни.</p>
                                 </div>
+                                <div className="mb-4">
+                                    <label className="inline-flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            className="form-checkbox"
+                                            checked={isManualStartDateActive}
+                                            onChange={(e) => setIsManualStartDateActive(e.target.checked)}
+                                        />
+                                        <span className="ml-2 text-gray-700 text-sm font-bold">Задай григорианска начална дата ръчно</span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline text-center mt-2"
+                                        value={currentManualStartDate}
+                                        onChange={(e) => setCurrentManualStartDate(e.target.value)}
+                                        disabled={!isManualStartDateActive}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Ако е зададена ръчно, тази дата ще фиксира началото на месеца.
+                                        Промените в броя дни на месеца ще се отразят само в края му, без да изместват следващите месеци.
+                                    </p>
+                                </div>
                                 <div className="flex justify-around">
                                     <button
                                         onClick={handleSaveManualMonthDays}
@@ -725,7 +870,7 @@
             );
         };
 
-        // Рендиране на React приложението в DOM
+        // Render the React application into the DOM
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
