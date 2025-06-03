@@ -14,6 +14,46 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        .modal {
+            display: none; /* Скрит по подразбиране */
+            position: fixed; /* Стои над всичко */
+            z-index: 1000; /* Висок z-index, за да е отгоре */
+            left: 0;
+            top: 0;
+            width: 100%; /* Цяла ширина */
+            height: 100%; /* Цяла височина */
+            overflow: auto; /* Позволява скрол, ако е необходимо */
+            background-color: rgba(0,0,0,0.4); /* Полупрозрачен фон */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Клас за скриване на бутона по време на скрийншот */
+        .hide-on-screenshot {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -84,99 +124,33 @@
             }
         };
 
-        // Helper to parse date strings like "7 Jan 01:56" into Date objects
-        const parseMoonPhaseDate = (dateString, year) => {
-            if (!dateString) return null;
-            // Append the year to make it a valid date string for parsing by Date constructor
-            // The Date constructor will parse this in the local timezone of the browser.
-            return new Date(`${dateString} ${year}`);
-        };
-
-        // ХАРДКОДНАТИ ДАННИ ЗА ЛУННИТЕ ФАЗИ ЗА 2025 И 2026 ГРИГОРИАНСКА
-        // Формат: 'ГГГГ-ММ-ДД': 'Символ'
-        // Месеците са 0-индексирани в JavaScript Date обекта, но ключовете са 1-индексирани за яснота
-        const hardcodedMoonPhases = {};
-
-        // Данни за 2025 г.
-        const moonData2025 = [
-            { "id": 1262, "new_moon": null, "first_quarter": "7 Jan 01:56", "full_moon": "14 Jan 00:26", "third_quarter": "21 Jan 22:30", "duration": "29 14 09" },
-            { "id": 1263, "new_moon": "29 Jan 14:35", "first_quarter": "5 Feb 10:02", "full_moon": "12 Feb 15:53", "third_quarter": "20 Feb 19:32", "duration": "29 12 09" },
-            { "id": 1264, "new_moon": "28 Feb 02:44", "first_quarter": "6 Mar 18:31", "full_moon": "14 Mar 08:54", "third_quarter": "22 Mar 13:29", "duration": "29 10 13" },
-            { "id": 1265, "new_moon": "29 Mar 12:57", "first_quarter": "5 Apr 05:14", "full_moon": "13 Apr 03:22", "third_quarter": "21 Apr 04:35", "duration": "29 08 33" },
-            { "id": 1266, "new_moon": "27 Apr 22:31", "first_quarter": "4 May 16:51", "full_moon": "12 May 19:55", "third_quarter": "20 May 14:58", "duration": "29 07 31" },
-            { "id": 1267, "new_moon": "27 May 06:02", "first_quarter": "3 Jun 06:40", "full_moon": "11 Jun 10:43", "third_quarter": "18 Jun 22:19", "duration": "29 07 29" },
-            { "id": 1268, "new_moon": "25 Jun 13:31", "first_quarter": "2 Jul 22:30", "full_moon": "10 Jul 23:36", "third_quarter": "18 Jul 03:37", "duration": "29 08 40" },
-            { "id": 1269, "new_moon": "24 Jul 22:11", "first_quarter": "1 Aug 15:41", "full_moon": "9 Aug 10:54", "third_quarter": "16 Aug 08:12", "duration": "29 10 55" },
-            { "id": 1270, "new_moon": "23 Aug 09:06", "first_quarter": "31 Aug 09:25", "full_moon": "7 Sep 21:08", "third_quarter": "14 Sep 13:32", "duration": "29 13 48" },
-            { "id": 1271, "new_moon": "21 Sep 22:54", "first_quarter": "30 Sep 02:53", "full_moon": "7 Oct 06:47", "third_quarter": "13 Oct 21:12", "duration": "29 16 31" },
-            { "id": 1272, "new_moon": "21 Oct 15:25", "first_quarter": "29 Oct 18:20", "full_moon": "5 Nov 15:19", "third_quarter": "12 Nov 07:28", "duration": "29 18 22" },
-            { "id": 1273, "new_moon": "20 Nov 08:47", "first_quarter": "28 Nov 08:58", "full_moon": "5 Dec 01:14", "third_quarter": "11 Dec 22:51", "duration": "29 18 56" },
-            { "id": 1274, "new_moon": "20 Dec 03:43", "first_quarter": "27 Dec 21:09", "full_moon": null, "third_quarter": null, "duration": "29 18 09" }
-        ];
-
-        // Данни за 2026 г.
-        const moonData2026 = [
-            { "id": 1274, "new_moon": null, "first_quarter": null, "full_moon": "3 Jan 12:02", "third_quarter": "10 Jan 17:48", "duration": "29 18 09" },
-            { "id": 1275, "new_moon": "18 Jan 21:51", "first_quarter": "26 Jan 06:47", "full_moon": "2 Feb 00:09", "third_quarter": "9 Feb 14:43", "duration": "29 16 09" },
-            { "id": 1276, "new_moon": "17 Feb 14:01", "first_quarter": "24 Feb 14:27", "full_moon": "3 Mar 13:37", "third_quarter": "11 Mar 11:38", "duration": "29 13 22" },
-            { "id": 1277, "new_moon": "19 Mar 03:23", "first_quarter": "25 Mar 21:17", "full_moon": "2 Apr 05:11", "third_quarter": "10 Apr 07:51", "duration": "29 10 28" },
-            { "id": 1278, "new_moon": "17 Apr 14:51", "first_quarter": "24 Apr 05:31", "full_moon": "1 May 20:23", "third_quarter": "10 May 00:10", "duration": "29 08 09" },
-            { "id": 1279, "new_moon": "16 May 23:01", "first_quarter": "23 May 14:10", "full_moon": "31 May 11:45", "third_quarter": "8 Jun 13:00", "duration": "29 06 53" },
-            { "id": 1280, "new_moon": "15 Jun 05:54", "first_quarter": "22 Jun 00:55", "full_moon": "30 Jun 02:56", "third_quarter": "7 Jul 22:29", "duration": "29 06 50" },
-            { "id": 1281, "new_moon": "14 Jul 12:43", "first_quarter": "21 Jul 14:05", "full_moon": "29 Jul 17:35", "third_quarter": "6 Aug 05:21", "duration": "29 07 53" },
-            { "id": 1282, "new_moon": "12 Aug 20:36", "first_quarter": "20 Aug 05:46", "full_moon": "28 Aug 07:18", "third_quarter": "4 Sep 10:51", "duration": "29 09 50" },
-            { "id": 1283, "new_moon": "11 Sep 06:26", "first_quarter": "18 Sep 23:43", "full_moon": "26 Sep 19:49", "third_quarter": "3 Oct 16:25", "duration": "29 12 23" },
-            { "id": 1284, "new_moon": "10 Oct 18:50", "first_quarter": "18 Oct 19:12", "full_moon": "26 Oct 06:11", "third_quarter": "1 Nov 22:28", "duration": "29 15 12" },
-            { "id": 1285, "new_moon": "9 Nov 09:02", "first_quarter": "17 Nov 13:47", "full_moon": "24 Nov 16:53", "third_quarter": "1 Dec 08:08", "duration": "29 17 50" },
-            { "id": 1286, "new_moon": "9 Dec 02:51", "first_quarter": "17 Dec 07:42", "full_moon": "24 Dec 03:28", "third_quarter": "30 Dec 20:59", "duration": "29 19 33" }
-        ];
-
-        // Функция за попълване на hardcodedMoonPhases обекта
-        const populateMoonPhases = (data, year) => {
-            data.forEach(monthData => {
-                // New Moon
-                const newMoonDate = parseMoonPhaseDate(monthData.new_moon, year);
-                if (newMoonDate) {
-                    const key = `${newMoonDate.getFullYear()}-${(newMoonDate.getMonth() + 1).toString().padStart(2, '0')}-${newMoonDate.getDate().toString().padStart(2, '0')}`;
-                    hardcodedMoonPhases[key] = '🌑︎';
-                }
-
-                // First Quarter
-                const firstQuarterDate = parseMoonPhaseDate(monthData.first_quarter, year);
-                if (firstQuarterDate) {
-                    const key = `${firstQuarterDate.getFullYear()}-${(firstQuarterDate.getMonth() + 1).toString().padStart(2, '0')}-${firstQuarterDate.getDate().toString().padStart(2, '0')}`;
-                    hardcodedMoonPhases[key] = '🌓︎';
-                }
-
-                // Full Moon
-                const fullMoonDate = parseMoonPhaseDate(monthData.full_moon, year);
-                if (fullMoonDate) {
-                    const key = `${fullMoonDate.getFullYear()}-${(fullMoonDate.getMonth() + 1).toString().padStart(2, '0')}-${fullMoonDate.getDate().toString().padStart(2, '0')}`;
-                    hardcodedMoonPhases[key] = '🌕︎';
-                }
-
-                // Third Quarter
-                const thirdQuarterDate = parseMoonPhaseDate(monthData.third_quarter, year);
-                if (thirdQuarterDate) {
-                    const key = `${thirdQuarterDate.getFullYear()}-${(thirdQuarterDate.getMonth() + 1).toString().padStart(2, '0')}-${thirdQuarterDate.getDate().toString().padStart(2, '0')}`;
-                    hardcodedMoonPhases[key] = '🌗︎';
-                }
-            });
-        };
-
-        // Попълване на данните за 2025 и 2026 г.
-        populateMoonPhases(moonData2025, 2025);
-        populateMoonPhases(moonData2026, 2026);
-
-
-        // Функция за получаване на символа за фазата на луната от хардкоднатите данни
+        // Функция за получаване на символа за фазата на луната въз основа на григорианска дата (астрономически метод с 4 основни фази)
         const getMoonPhaseSymbol = (gregorianDate) => {
-            const year = gregorianDate.getFullYear();
-            const month = (gregorianDate.getMonth() + 1).toString().padStart(2, '0'); // +1 защото месеците са 0-индексирани
-            const day = gregorianDate.getDate().toString().padStart(2, '0');
-            const dateKey = `${year}-${month}-${day}`;
+            // Референтна дата на новолуние: 6 януари 2000 г., 12:00 UTC
+            const referenceNewMoon = new Date(Date.UTC(2000, 0, 6, 12, 0, 0));
+            const millisecondsPerDay = 1000 * 60 * 60 * 24;
+            const lunarCycle = 29.530588; // Синодичен период на Луната
 
-            return hardcodedMoonPhases[dateKey] || ''; // Връща символа или празен низ, ако няма фаза за датата
+            const daysSinceReference = (gregorianDate.getTime() - referenceNewMoon.getTime()) / millisecondsPerDay;
+            let phaseIndex = daysSinceReference % lunarCycle;
+
+            if (phaseIndex < 0) {
+                phaseIndex += lunarCycle;
+            }
+
+            // Толеранс за показване на символа около точната фаза (много тесен диапазон)
+            const displayTolerance = 0.75; 
+
+            // Новолуние (около ден 0 или lunarCycle)
+            if (phaseIndex < displayTolerance || phaseIndex >= lunarCycle - displayTolerance) return '🌑︎';
+            // Първа четвърт (около ден lunarCycle / 4)
+            if (phaseIndex >= (lunarCycle / 4) - displayTolerance && phaseIndex < (lunarCycle / 4) + displayTolerance) return '🌓︎';
+            // Пълнолуние (около ден lunarCycle / 2)
+            if (phaseIndex >= (lunarCycle / 2) - displayTolerance && phaseIndex < (lunarCycle / 2) + displayTolerance) return '🌕︎';
+            // Последна четвърт (около ден lunarCycle * 3 / 4)
+            if (phaseIndex >= (lunarCycle * 3 / 4) - displayTolerance && phaseIndex < (lunarCycle * 3 / 4) + displayTolerance) return '🌗︎';
+
+            return ''; // Връща празен низ за дните извън тези диапазони
         };
 
         // Дефиниция на основните ислямски свещени дни и нощи за 1446 г. по Хиджра
@@ -217,6 +191,13 @@
             const [notes, setNotes] = useState({}); // Съхранява бележки: { 'ГГГГ-ММ-ДД_Х': 'текст на бележка' }
             const [viewMode, setViewMode] = useState('month'); // 'month' или 'year'
 
+            // Състояние за управление на модала за лунни фази
+            const [showPhaseModal, setShowPhaseModal] = useState(false);
+            const [modalDateKey, setModalDateKey] = useState(''); // Ключ на датата, за която отваряме модала
+
+            // Състояние за съхранение на ръчно зададени фази
+            const [manualMoonPhases, setManualMoonPhases] = useState({}); // {'YYYY-MM-DD': '🌑︎'}
+
             // Обработка на промяна в текста на бележката
             const handleNoteChange = useCallback((dateKey, text) => {
                 setNotes(prevNotes => ({
@@ -224,6 +205,37 @@
                     [dateKey]: text
                 }));
             }, []);
+
+            // Функция за отваряне на модала за избор на фаза
+            const openPhaseModal = (dateKey) => {
+                setModalDateKey(dateKey);
+                setShowPhaseModal(true);
+            };
+
+            // Функция за затваряне на модала
+            const closePhaseModal = () => {
+                setShowPhaseModal(false);
+                setModalDateKey('');
+            };
+
+            // Функция за задаване на ръчна фаза
+            const handleManualPhaseSelection = (symbol) => {
+                setManualMoonPhases(prevPhases => ({
+                    ...prevPhases,
+                    [modalDateKey]: symbol
+                }));
+                closePhaseModal();
+            };
+
+            // Функция за изчистване на ръчна фаза (сега може да премахва и автоматични, като ги замества с празен низ)
+            const handleClearManualPhase = () => {
+                setManualMoonPhases(prevPhases => ({
+                    ...prevPhases,
+                    [modalDateKey]: '' // Задава празен низ, за да скрие както ръчни, така и автоматични фази
+                }));
+                closePhaseModal();
+            };
+
 
             // Компонент за рендиране на един месец (използва се както за месечен, така и за годишен изглед)
             const renderMonthGrid = (hijriYear, hijriMonth, isYearView = false) => {
@@ -247,16 +259,35 @@
                     const monthFormatted = (gregorianDate.getMonth() + 1).toString().padStart(2, '0');
                     const gregorianDateString = `${dayFormatted}.${monthFormatted}`;
                     
-                    const dateKey = `${hijriYear}-${hijriMonth}-${day}`;
+                    const dateKey = `${gregorianDate.getFullYear()}-${monthFormatted}-${dayFormatted}`; // Използваме григорианска дата за ключ
 
                     // Определяне дали денят е петък (ден 5 в JS Date, ако неделя е 0)
                     const isFriday = gregorianDate.getDay() === 5;
                     const cellBgClass = isFriday ? 'bg-green-100' : 'bg-white'; // Зелен фон за петък
 
-                    const moonPhaseSymbol = getMoonPhaseSymbol(gregorianDate); // Вземане на символа за фазата на луната
+                    // Вземане на символа за фазата на луната
+                    // Ако има ръчно зададена фаза (дори и празен низ за изчистване), тя има приоритет.
+                    // В противен случай, използва автоматично изчислената фаза.
+                    const autoMoonPhaseSymbol = getMoonPhaseSymbol(gregorianDate);
+                    const moonPhaseSymbolToDisplay = (manualMoonPhases[dateKey] !== undefined) ? manualMoonPhases[dateKey] : autoMoonPhaseSymbol;
+                    
+                    // Бутонът за ръчна фаза се показва на ВСЯКА дата
+                    const showManualOptionButton = true; // Винаги показвай бутона
+
 
                     calendarDays.push(
-                        <div key={dateKey} className={`p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col ${cellBgClass} hover:shadow-md transition-shadow duration-200`}>
+                        <div key={dateKey} className={`relative p-2 border border-gray-300 rounded-lg shadow-sm flex flex-col ${cellBgClass} hover:shadow-md transition-shadow duration-200`}>
+                            {/* Бутон за ръчно задаване на фаза */}
+                            {showManualOptionButton && (
+                                <button
+                                    onClick={() => openPhaseModal(dateKey)}
+                                    className="moon-phase-option-button absolute top-1 right-1 text-gray-500 hover:text-indigo-700 text-xs px-1 py-0.5 rounded-full bg-gray-100 hover:bg-indigo-200 transition-colors duration-200"
+                                    title="Задай лунна фаза"
+                                >
+                                    ⚙︎
+                                </button>
+                            )}
+
                             {/* Хиджри ден и лунен символ (условно рендиране) */}
                             {isYearView ? (
                                 <>
@@ -266,13 +297,13 @@
                                     <div className={`text-gray-600 mb-1 text-base text-center`}> {/* Увеличен размер на григорианската дата */}
                                         {gregorianDateString}
                                     </div>
-                                    {moonPhaseSymbol && <div className="text-xs text-center mt-1">{moonPhaseSymbol}</div>} {/* Намален размер на символа на луната, под датите */}
+                                    {moonPhaseSymbolToDisplay && <div className="text-xs text-center mt-1">{moonPhaseSymbolToDisplay}</div>} {/* Намален размер на символа на луната, под датите */}
                                 </>
                             ) : (
                                 <>
                                     <div className="flex justify-between items-center font-semibold text-2xl text-indigo-700"> {/* Увеличен размер на хиджри деня */}
                                         <span>{day}</span>
-                                        {moonPhaseSymbol && <span className="text-xs">{moonPhaseSymbol}</span>} {/* Намален размер на символа на луната */}
+                                        {moonPhaseSymbolToDisplay && <span className="text-xs">{moonPhaseSymbolToDisplay}</span>} {/* Намален размер на символа на луната */}
                                     </div>
                                     <div className={`text-gray-600 mb-1 text-base`}> {/* Увеличен размер на григорианската дата */}
                                         {gregorianDateString}
@@ -371,6 +402,10 @@
             const handleDownloadScreenshot = () => {
                 const calendarElement = document.getElementById('calendar-container'); // ID на елемента, който ще се снима
                 if (calendarElement) {
+                    // Временно скриване на всички бутони за опции на лунните фази
+                    const optionButtons = document.querySelectorAll('.moon-phase-option-button');
+                    optionButtons.forEach(button => button.classList.add('hide-on-screenshot'));
+
                     html2canvas(calendarElement, {
                         useCORS: true, // Важно за зареждане на външни ресурси, ако има такива
                         scale: 2 // Увеличава резолюцията на скрийншота
@@ -384,6 +419,9 @@
                     }).catch(err => {
                         console.error("Грешка при генериране на скрийншот:", err);
                         // Можете да добавите съобщение за грешка на потребителя тук
+                    }).finally(() => {
+                        // Винаги показване на бутоните отново, независимо от резултата
+                        optionButtons.forEach(button => button.classList.remove('hide-on-screenshot'));
                     });
                 }
             };
@@ -482,6 +520,48 @@
                             Свали скрийншот на календара
                         </button>
                     </div>
+
+                    {/* Модал за избор на лунна фаза */}
+                    {showPhaseModal && (
+                        <div className="modal">
+                            <div className="modal-content">
+                                <span className="close-button" onClick={closePhaseModal}>&times;</span>
+                                <h2 className="text-xl font-bold mb-4">Избери лунна фаза за {modalDateKey}</h2>
+                                <div className="flex justify-around mb-4">
+                                    <button
+                                        onClick={() => handleManualPhaseSelection('🌑︎')}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-2xl"
+                                    >
+                                        🌑︎
+                                    </button>
+                                    <button
+                                        onClick={() => handleManualPhaseSelection('🌓︎')}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-2xl"
+                                    >
+                                        🌓︎
+                                    </button>
+                                    <button
+                                        onClick={() => handleManualPhaseSelection('🌕︎')}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-2xl"
+                                    >
+                                        🌕︎
+                                    </button>
+                                    <button
+                                        onClick={() => handleManualPhaseSelection('🌗︎')}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full text-2xl"
+                                    >
+                                        🌗︎
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={handleClearManualPhase}
+                                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full"
+                                >
+                                    Изчисти фазата
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
