@@ -60,13 +60,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useCallback } = React;
+        const { useState, useCallback, useEffect } = React;
 
         // Помощна функция за преобразуване на хиджри дата в григорианска (опростено приближение)
-        // Това е опростено преобразуване и може да не е напълно точно за всички дати
-        // поради сложността на лунния календар и различните методи на изчисление.
-        // За приложение от производствен клас би се препоръчала надеждна библиотека за хиджри календар.
-        const hijriToGregorian = (hijriYear, hijriMonth, hijriDay) => {
+        // Тази функция вече приема getDaysInHijriMonth като аргумент
+        const hijriToGregorian = (hijriYear, hijriMonth, hijriDay, getDaysInHijriMonthFunc) => {
             // Нова референтна точка: 6 Зилхидже 1446 г. по Хиджра е 2 юни 2025 г. от н.е.
             const REFERENCE_HIJRI_YEAR = 1446;
             const REFERENCE_HIJRI_MONTH = 12; // Зилхидже
@@ -84,11 +82,11 @@
             // След това, коригиране за разлика в месеците
             if (hijriMonth < REFERENCE_HIJRI_MONTH) {
                 for (let m = REFERENCE_HIJRI_MONTH - 1; m >= hijriMonth; m--) {
-                    daysDiff -= getDaysInHijriMonth(hijriYear, m); // По-точно изчисление на дните в месеца
+                    daysDiff -= getDaysInHijriMonthFunc(hijriYear, m); // Използваме предадената функция
                 }
             } else if (hijriMonth > REFERENCE_HIJRI_MONTH) {
                 for (let m = REFERENCE_HIJRI_MONTH; m < hijriMonth; m++) {
-                    daysDiff += getDaysInHijriMonth(hijriYear, m); // По-точно изчисление на дните в месеца
+                    daysDiff += getDaysInHijriMonthFunc(hijriYear, m); // Използваме предадената функция
                 }
             }
 
@@ -109,17 +107,13 @@
         ];
 
         // Функция за получаване на броя дни в хиджри месец (опростено приближение)
-        // В действителност, хиджри месеците редуват 29 и 30 дни въз основа на наблюдението на луната.
-        // Тази функция използва фиксиран модел за демонстрация.
-        const getDaysInHijriMonth = (hijriYear, hijriMonth) => {
-            // Опропен модел: нечетни месеци 30 дни, четни месеци 29 дни, Зул-Хиджа може да е 29 или 30
-            if (hijriMonth % 2 !== 0) { // Нечетни месеци (Мухаррем, Рабиюлеввел и т.н.)
+        // Тази функция ще бъде модифицирана, за да използва ръчни настройки
+        const getDaysInHijriMonthDefault = (hijriMonth) => {
+            if (hijriMonth % 2 !== 0) {
                 return 30;
-            } else if (hijriMonth === 12) { // Зилхидже
-                // В реален календар това зависи от годината (високосна година за Хиджра)
-                // За простота, ще го направим 29 дни, или 30 за високосни години (което не е изчислено тук)
-                return 29; // Или 30 във високосна година, не е имплементирано тук
-            } else { // Четни месеци
+            } else if (hijriMonth === 12) {
+                return 29;
+            } else {
                 return 29;
             }
         };
@@ -178,7 +172,6 @@
 
 
         const App = () => {
-            const { useState, useCallback } = React;
             const today = new Date();
             const currentGregorianYear = today.getFullYear();
 
@@ -198,6 +191,23 @@
             // Състояние за съхранение на ръчно зададени фази
             const [manualMoonPhases, setManualMoonPhases] = useState({}); // {'YYYY-MM-DD': '🌑︎'}
 
+            // Състояние за ръчно зададени дни в месеца
+            const [manualMonthDays, setManualMonthDays] = useState({}); // {'YYYY-MM': 29/30}
+
+            // Състояние за управление на модала за дни в месеца
+            const [showMonthDaysModal, setShowMonthDaysModal] = useState(false);
+            const [modalMonthKey, setModalMonthKey] = useState(''); // Ключ на месеца (пр. '1446-12')
+            const [currentManualDays, setCurrentManualDays] = useState(0); // Брой дни в модала
+
+            // Функция за получаване на броя дни в хиджри месец, с приоритет за ръчните настройки
+            const getDaysInHijriMonth = (hijriYear, hijriMonth) => {
+                const monthKey = `${hijriYear}-${hijriMonth}`;
+                if (manualMonthDays[monthKey] !== undefined) {
+                    return manualMonthDays[monthKey];
+                }
+                return getDaysInHijriMonthDefault(hijriMonth);
+            };
+
             // Обработка на промяна в текста на бележката
             const handleNoteChange = useCallback((dateKey, text) => {
                 setNotes(prevNotes => ({
@@ -206,19 +216,17 @@
                 }));
             }, []);
 
-            // Функция за отваряне на модала за избор на фаза
+            // === Функции за Лунни Фази Модал ===
             const openPhaseModal = (dateKey) => {
                 setModalDateKey(dateKey);
                 setShowPhaseModal(true);
             };
 
-            // Функция за затваряне на модала
             const closePhaseModal = () => {
                 setShowPhaseModal(false);
                 setModalDateKey('');
             };
 
-            // Функция за задаване на ръчна фаза
             const handleManualPhaseSelection = (symbol) => {
                 setManualMoonPhases(prevPhases => ({
                     ...prevPhases,
@@ -227,13 +235,101 @@
                 closePhaseModal();
             };
 
-            // Функция за изчистване на ръчна фаза (сега може да премахва и автоматични, като ги замества с празен низ)
             const handleClearManualPhase = () => {
-                setManualMoonPhases(prevPhases => ({
-                    ...prevPhases,
-                    [modalDateKey]: '' // Задава празен низ, за да скрие както ръчни, така и автоматични фази
-                }));
+                setManualMoonPhases(prevPhases => {
+                    const newPhases = { ...prevPhases };
+                    delete newPhases[modalDateKey]; // Премахва записа, за да се върне към автоматичната фаза или празно
+                    return newPhases;
+                });
                 closePhaseModal();
+            };
+
+            // === Функции за Дни в Месеца Модал ===
+            const openMonthDaysModal = (monthKey, currentDays) => {
+                setModalMonthKey(monthKey);
+                setCurrentManualDays(currentDays);
+                setShowMonthDaysModal(true);
+            };
+
+            const closeMonthDaysModal = () => {
+                setShowMonthDaysModal(false);
+                setModalMonthKey('');
+                setCurrentManualDays(0);
+            };
+
+            const handleSaveManualMonthDays = () => {
+                setManualMonthDays(prevDays => ({
+                    ...prevDays,
+                    [modalMonthKey]: currentManualDays
+                }));
+                closeMonthDaysModal();
+            };
+
+            const handleClearManualMonthDays = () => {
+                setManualMonthDays(prevDays => {
+                    const newDays = { ...prevDays };
+                    delete newDays[modalMonthKey];
+                    return newDays;
+                });
+                closeMonthDaysModal();
+            };
+
+            // === Зареждане на състояние от localStorage при първоначално зареждане ===
+            useEffect(() => {
+                try {
+                    const savedNotes = localStorage.getItem('calendarNotes');
+                    if (savedNotes) {
+                        setNotes(JSON.parse(savedNotes));
+                    }
+                    const savedManualMoonPhases = localStorage.getItem('manualMoonPhases');
+                    if (savedManualMoonPhases) {
+                        setManualMoonPhases(JSON.parse(savedManualMoonPhases));
+                    }
+                    const savedManualMonthDays = localStorage.getItem('manualMonthDays');
+                    if (savedManualMonthDays) {
+                        setManualMonthDays(JSON.parse(savedManualMonthDays));
+                    }
+                } catch (error) {
+                    console.error("Failed to load state from localStorage:", error);
+                }
+            }, []);
+
+            // === Запазване на състояние в localStorage при промяна ===
+            useEffect(() => {
+                try {
+                    localStorage.setItem('calendarNotes', JSON.stringify(notes));
+                } catch (error) {
+                    console.error("Failed to save notes to localStorage:", error);
+                }
+            }, [notes]);
+
+            useEffect(() => {
+                try {
+                    localStorage.setItem('manualMoonPhases', JSON.stringify(manualMoonPhases));
+                } catch (error) {
+                    console.error("Failed to save manualMoonPhases to localStorage:", error);
+                }
+            }, [manualMoonPhases]);
+
+            useEffect(() => {
+                try {
+                    localStorage.setItem('manualMonthDays', JSON.stringify(manualMonthDays));
+                } catch (error) {
+                    console.error("Failed to save manualMonthDays to localStorage:", error);
+                }
+            }, [manualMonthDays]);
+
+            // === Функция за глобално запазване на всички настройки ===
+            const handleSaveAllSettings = () => {
+                try {
+                    localStorage.setItem('calendarNotes', JSON.stringify(notes));
+                    localStorage.setItem('manualMoonPhases', JSON.stringify(manualMoonPhases));
+                    localStorage.setItem('manualMonthDays', JSON.stringify(manualMonthDays));
+                    console.log("Всички настройки са запазени!");
+                    // Можете да добавите визуална обратна връзка тук, например кратко съобщение "Запазено!"
+                } catch (error) {
+                    console.error("Грешка при запазване на всички настройки:", error);
+                }
             };
 
 
@@ -242,7 +338,8 @@
                 const daysInMonth = getDaysInHijriMonth(hijriYear, hijriMonth);
                 const calendarDays = [];
 
-                const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1);
+                // Pass the current getDaysInHijriMonth function to hijriToGregorian
+                const firstDayGregorian = hijriToGregorian(hijriYear, hijriMonth, 1, getDaysInHijriMonth);
                 const gregorianDayOfWeek = firstDayGregorian.getDay(); // 0 за неделя, 1 за понеделник и т.н.
                 // За да започва от неделя, не е нужна корекция: 0 за неделя, 1 за понеделник и т.н.
                 const firstDayOfWeekAdjusted = gregorianDayOfWeek; 
@@ -253,7 +350,8 @@
                 }
 
                 for (let day = 1; day <= daysInMonth; day++) {
-                    const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day);
+                    // Pass the current getDaysInHijriMonth function to hijriToGregorian
+                    const gregorianDate = hijriToGregorian(hijriYear, hijriMonth, day, getDaysInHijriMonth);
                     // Форматиране на григорианската дата като ДД.ММ
                     const dayFormatted = gregorianDate.getDate().toString().padStart(2, '0');
                     const monthFormatted = (gregorianDate.getMonth() + 1).toString().padStart(2, '0');
@@ -331,14 +429,32 @@
                 return (
                     <div className="mb-8"> {/* Отстояние между месеците в годишен изглед */}
                         {!isYearView && ( // Показва името на месеца и годината само в месечен изглед
-                            <div className="text-2xl font-bold text-indigo-800 text-center mb-4">
-                                {hijriMonths[hijriMonth - 1].toUpperCase()} {hijriYear} г.
+                            <div className="flex justify-center items-center mb-4">
+                                <div className="text-2xl font-bold text-indigo-800 text-center mr-2">
+                                    {hijriMonths[hijriMonth - 1].toUpperCase()} {hijriYear} г.
+                                </div>
+                                <button
+                                    onClick={() => openMonthDaysModal(`${hijriYear}-${hijriMonth}`, getDaysInHijriMonth(hijriYear, hijriMonth))}
+                                    className="moon-phase-option-button text-gray-500 hover:text-indigo-700 text-xs px-1 py-0.5 rounded-full bg-gray-100 hover:bg-indigo-200 transition-colors duration-200"
+                                    title="Редактирай дни в месеца"
+                                >
+                                    ⚙︎
+                                </button>
                             </div>
                         )}
                         {isYearView && ( // Показва името на месеца и годината за всеки месец в годишен изглед
-                            <h3 className="text-xl font-semibold text-indigo-700 text-center mb-2">
-                                {hijriMonths[hijriMonth - 1]} {hijriYear} г.
-                            </h3>
+                            <div className="flex justify-center items-center mb-2">
+                                <h3 className="text-xl font-semibold text-indigo-700 text-center mr-2">
+                                    {hijriMonths[hijriMonth - 1]} {hijriYear} г.
+                                </h3>
+                                <button
+                                    onClick={() => openMonthDaysModal(`${hijriYear}-${hijriMonth}`, getDaysInHijriMonth(hijriYear, hijriMonth))}
+                                    className="moon-phase-option-button text-gray-500 hover:text-indigo-700 text-xs px-1 py-0.5 rounded-full bg-gray-100 hover:bg-indigo-200 transition-colors duration-200"
+                                    title="Редактирай дни в месеца"
+                                >
+                                    ⚙︎
+                                </button>
+                            </div>
                         )}
                         <div className="grid grid-cols-7 gap-2 text-center font-bold text-gray-700 text-sm mb-2"> {/* Намален размер на шрифта за заглавията на дните */}
                             <div>Нд</div>
@@ -511,13 +627,19 @@
                             </div>
                         )}
                     </div>
-                    {/* Бутон за сваляне на скрийншот */}
+                    {/* Бутони за сваляне на скрийншот и запазване на настройки */}
                     <div className="flex justify-center mt-6">
                         <button
                             onClick={handleDownloadScreenshot}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg"
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg mr-4"
                         >
                             Свали скрийншот на календара
+                        </button>
+                        <button
+                            onClick={handleSaveAllSettings}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 text-lg"
+                        >
+                            Запази всички настройки
                         </button>
                     </div>
 
@@ -559,6 +681,43 @@
                                 >
                                     Изчисти фазата
                                 </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Модал за регулиране на дни в месеца */}
+                    {showMonthDaysModal && (
+                        <div className="modal">
+                            <div className="modal-content">
+                                <span className="close-button" onClick={closeMonthDaysModal}>&times;</span>
+                                <h2 className="text-xl font-bold mb-4">Редактирай дни за {hijriMonths[parseInt(modalMonthKey.split('-')[1]) - 1]} {modalMonthKey.split('-')[0]} г.</h2>
+                                <div className="mb-4">
+                                    <label htmlFor="daysInMonth" className="block text-gray-700 text-sm font-bold mb-2">Брой дни:</label>
+                                    <input
+                                        type="number"
+                                        id="daysInMonth"
+                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline text-center"
+                                        value={currentManualDays}
+                                        onChange={(e) => setCurrentManualDays(parseInt(e.target.value) || 0)}
+                                        min="29"
+                                        max="30"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Хиджри месеците обикновено са 29 или 30 дни.</p>
+                                </div>
+                                <div className="flex justify-around">
+                                    <button
+                                        onClick={handleSaveManualMonthDays}
+                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full"
+                                    >
+                                        Запази
+                                    </button>
+                                    <button
+                                        onClick={handleClearManualMonthDays}
+                                        className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full"
+                                    >
+                                        Изчисти ръчна настройка
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
